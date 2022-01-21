@@ -5,7 +5,7 @@ import json
 from flask_cors import CORS
 
 from .database.models import db_drop_and_create_all, setup_db, Drink
-# from .auth.auth import AuthError, requires_auth
+from .auth.auth import AuthError, requires_auth
 
 app = Flask(__name__)
 setup_db(app)
@@ -17,9 +17,20 @@ CORS(app)
 !! NOTE THIS MUST BE UNCOMMENTED ON FIRST RUN
 !! Running this funciton will add one
 '''
-# db_drop_and_create_all()
+db_drop_and_create_all()
+
+@app.errorhandler(AuthError)
+def autherror(error):
+    error_details = error.error
+    error_status_code = error.status_code
+    return jsonify({
+        'success': False,
+        'error': error_status_code,
+        'message': error_details['description']
+    }), error_status_code
 
 # ROUTES
+
 '''
 @TODO implement endpoint
     GET /drinks
@@ -28,7 +39,23 @@ CORS(app)
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
+@app.route('/drinks')
+def get_drinks():
+    try:
+        drinks = Drink.query.all()
+    except Exception as e:
+        print(e)
+        abort(404)
 
+    if drinks is None:
+        abort(404)
+
+    formattedDrinks = [d.short() for d in drinks]
+
+    return jsonify({
+        'success': True,
+        'drinks': formattedDrinks
+    })
 
 '''
 @TODO implement endpoint
@@ -38,6 +65,24 @@ CORS(app)
     returns status code 200 and json {"success": True, "drinks": drinks} where drinks is the list of drinks
         or appropriate status code indicating reason for failure
 '''
+@app.route('/drinks-detail')
+@requires_auth('get:drinks-detail')
+def get_drinks_details(jwt):
+    try:
+        drinks = Drink.query.all()
+    except Exception as e:
+        print(e)
+        abort(404)
+
+    if drinks is None:
+        abort(404)
+
+    formattedDrinks = [drink.long() for drink in drinks]
+
+    return jsonify({
+        'success': True,
+        'drinks': formattedDrinks
+    })
 
 
 '''
